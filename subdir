@@ -1,0 +1,96 @@
+#!/usr/local/bin/python
+import os
+import sys
+import time
+import requests
+import json
+from datetime import datetime, timedelta
+
+print("\nSubdomain Enumeration\n")
+
+def get_config_dir():
+    config_dir = os.path.expanduser("~/.subdirconfig")
+    if not os.path.exists(config_dir):
+        os.makedirs(config_dir)
+    return config_dir
+
+def get_api_key():
+    config_dir = get_config_dir()
+    api_key_file = os.path.join(config_dir, "securitytrails_api_key")
+    if os.path.exists(api_key_file):
+        with open(api_key_file, 'r') as f:
+            api_key = f.read().strip()
+            if api_key:
+                return api_key
+    api_key = input("Get your keys on https://securitytrails.com/app/account \nEnter your SecurityTrails API key: ").strip()
+    with open(api_key_file, 'w') as f:
+        f.write(api_key)
+    return api_key
+
+def check_api_key(api_key):
+    url = "https://api.securitytrails.com/v1/ping"
+    headers = {"accept": "application/json", "APIKEY": api_key}
+    response = requests.get(url, headers=headers)
+    return response.status_code == 200
+
+def get_sub_domains(domain, filepath):
+    api_key = get_api_key()
+    while not check_api_key(api_key):
+        print("Invalid API key. Please provide a valid API key.")
+        api_key = input("Enter your SecurityTrails API key: ").strip()
+        with open(os.path.join(get_config_dir(), "securitytrails_api_key"), 'w') as f:
+            f.write(api_key)
+
+    url = "https://api.securitytrails.com/v1/domain/" + domain + "/subdomains"
+    querystring = {"children_only": "true"}
+    headers = {"accept": "application/json", "apikey": api_key}
+    response = requests.request("GET", url, headers=headers, params=querystring)
+    if response.status_code != 200:
+        print("Error fetching domains.")
+        sys.exit(1)
+    result_json = json.loads(response.text)
+    sub_domains = [i + '.' + domain for i in result_json['subdomains']]
+    with open(filepath, 'a') as f:
+        for i in sub_domains:
+            f.write(i + '\n')
+    return sub_domains
+
+def check_usage():
+    api_key = get_api_key()
+    url = "https://api.securitytrails.com/v1/account/usage"
+    headers = {"accept": "application/json", "APIKEY": api_key}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        usage_info = json.loads(response.text)
+        print("API usage:", usage_info)
+    else:
+        print("Error checking usage.")
+
+def update_time_tracker():
+    next_check_time = datetime.now() + timedelta(hours=5)  # checks and displays your usage after every 5 hours
+    with open(os.path.join(get_config_dir(), "subdotimetracker"), 'w') as f:
+        f.write(next_check_time.isoformat())
+
+def check_time_tracker():
+    time_tracker_path = os.path.join(get_config_dir(), "subdotimetracker")
+    if os.path.exists(time_tracker_path):
+        with open(time_tracker_path, 'r') as f:
+            next_check_time_str = f.read().strip()
+            if next_check_time_str:
+                next_check_time = datetime.fromisoformat(next_check_time_str)
+                if datetime.now() > next_check_time:
+                    print("Time to check usage.")
+                    check_usage()
+                    update_time_tracker()
+    else:
+        update_time_tracker()
+
+if len(sys.argv) != 3:
+    print("Usage: {} <domain> <filepath>".format(sys.argv[0]))
+    sys.exit(1)
+
+domain = sys.argv[1]
+filepath = sys.argv[2]
+
+check_time_tracker()
+get_sub_domains(domain, filepath)

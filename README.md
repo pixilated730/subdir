@@ -10,12 +10,12 @@ Subdir is a Python script for enumerating subdomains using the SecurityTrails AP
    
    - Make the script executable:
      ```
-     chmod +x subdir.py
+     chmod +x subdir
      ```
 
    - Move the script to the bin directory (optional, for global usage):
      ```
-     sudo mv subdir.py /usr/local/bin/subdir
+     sudo mv subdir /usr/local/bin/subdir
      ```
 
 3. **Usage**:

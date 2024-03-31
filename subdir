@@ -77,7 +77,7 @@ def check_time_tracker():
         with open(time_tracker_path, 'r') as f:
             next_check_time_str = f.read().strip()
             if next_check_time_str:
-                next_check_time = datetime.fromisoformat(next_check_time_str)
+                next_check_time = datetime.strptime(next_check_time_str, '%Y-%m-%dT%H:%M:%S.%f')
                 if datetime.now() > next_check_time:
                     print("Time to check usage.")
                     check_usage()
